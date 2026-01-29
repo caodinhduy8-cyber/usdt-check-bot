@@ -1,12 +1,14 @@
 import requests
+import os
 from telegram.ext import ApplicationBuilder, CommandHandler
 from datetime import datetime, timedelta
-import os
 
-TOKEN = os.getenv("BOT_TOKEN")   # KHÔNG ghi cứng token
+TOKEN = os.getenv("BOT_TOKEN")
+
+BINANCE_P2P = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
+
 
 def get_p2p_price(trade_type):
-    url = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
     payload = {
         "asset": "USDT",
         "fiat": "VND",
@@ -15,16 +17,16 @@ def get_p2p_price(trade_type):
         "tradeType": trade_type
     }
 
-    r = requests.post(url, json=payload, timeout=10)
+    r = requests.post(BINANCE_P2P, json=payload, timeout=10)
     data = r.json()
 
     return float(data["data"][0]["adv"]["price"])
 
 
 def get_usdt_p2p():
-    # Chuẩn thị trường VN:
-    sell_price = get_p2p_price("BUY")    # giá người bán USDT
-    buy_price = get_p2p_price("SELL")    # giá người mua USDT
+    # Chuẩn VN:
+    buy_price = get_p2p_price("BUY")     # anh mua USDT
+    sell_price = get_p2p_price("SELL")   # anh bán USDT
 
     avg = int((buy_price + sell_price) / 2)
 
@@ -34,10 +36,9 @@ def get_usdt_p2p():
 async def usdt(update, context):
     try:
         buy, sell, avg = get_usdt_p2p()
-
         now = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M %d/%m")
 
-        msg = (
+        text = (
             f"🕐 {now}\n"
             f"📈 Mua USDT: {buy:,} VND\n"
             f"📉 Bán USDT: {sell:,} VND\n"
@@ -45,7 +46,7 @@ async def usdt(update, context):
             f"📊 Binance P2P"
         )
 
-        await update.message.reply_text(msg)
+        await update.message.reply_text(text)
 
     except Exception as e:
         print("ERROR:", e)
