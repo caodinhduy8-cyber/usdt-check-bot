@@ -1,48 +1,64 @@
 import requests
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram import Update
 from datetime import datetime, timedelta
-import os
 
-TOKEN = os.getenv("BOT_TOKEN") or "DAN_TOKEN_BOT_CUA_ANH_VAO_DAY"
+TOKEN = "YOUR_BOT_TOKEN"
+
+# ID Telegram của bạn (khóa quyền)
+OWNER_ID = 8388605825
+
+BINANCE_P2P_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 
 def get_p2p_price(trade_type):
-    url = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
     payload = {
-        "asset": "USDT",
-        "fiat": "VND",
         "page": 1,
         "rows": 1,
-        "tradeType": trade_type
+        "payTypes": [],
+        "asset": "USDT",
+        "tradeType": trade_type,
+        "fiat": "VND"
     }
-    r = requests.post(url, json=payload, timeout=10).json()
-    return float(r["data"][0]["adv"]["price"])
+    r = requests.post(BINANCE_P2P_URL, json=payload, timeout=10)
+    data = r.json()["data"][0]
+    return float(data["adv"]["price"])
 
-def get_usdt_p2p():
-    # ĐẢO CHIỀU CHO ĐÚNG THỊ TRƯỜNG
-    sell_price = get_p2p_price("BUY")    # người bán rẻ nhất
-    buy_price = get_p2p_price("SELL")    # người mua trả cao nhất
-
-    avg = int((buy_price + sell_price) / 2)
-    return int(buy_price), int(sell_price), avg
-
-async def usdt(update, context):
+async def usdt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        buy, sell, avg = get_usdt_p2p()
-        now = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M %d/%m")
+        buy = get_p2p_price("BUY")   # người bán USDT cho mình → giá mua
+        sell = get_p2p_price("SELL") # mình bán USDT → giá bán
+        avg = (buy + sell) / 2
 
-        await update.message.reply_text(
-            f"🕐 {now}\n"
-            f"📈 Mua: {buy:,} VND\n"
-            f"📉 Bán: {sell:,} VND\n"
-            f"⚖ Trung bình: {avg:,} VND\n"
+        now = datetime.utcnow() + timedelta(hours=7)
+
+        msg = (
+            f"🕒 {now.strftime('%H:%M %d/%m')}\n"
+            f"💵 Mua: {int(buy):,} VND\n"
+            f"💸 Bán: {int(sell):,} VND\n"
+            f"📊 Trung bình: {int(avg):,} VND\n"
             f"(Nguồn: Binance P2P)"
         )
-    except Exception as e:
-        print(e)
-        await update.message.reply_text("⚠ Lỗi lấy giá, thử lại.")
 
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(CommandHandler("usdt", usdt))
+        await update.message.reply_text(msg)
 
-print("Bot P2P running...")
-app.run_polling()
+    except Exception:
+        await update.message.reply_text("⚠ Không lấy được giá USDT, thử lại sau.")
+
+# Chặn người khác thêm bot vào nhóm
+async def block_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != OWNER_ID:
+        await update.message.reply_text("⛔ Bạn không có quyền sử dụng bot này.")
+        return
+
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("usdt", usdt))
+    app.add_handler(CommandHandler("start", block_add))
+
+    print("Bot đang chạy...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
