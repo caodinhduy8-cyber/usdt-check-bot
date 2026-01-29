@@ -1,6 +1,6 @@
 import requests
 from telegram.ext import ApplicationBuilder, CommandHandler
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 TOKEN = os.getenv("BOT_TOKEN") or "DAN_TOKEN_BOT_CUA_ANH_VAO_DAY"
@@ -23,7 +23,8 @@ def get_usdt_vnd():
         return None
 
 async def usdt(update, context):
-    now = datetime.now().strftime("%H:%M %d/%m")
+    # Giờ Việt Nam (GMT+7)
+    now = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M %d/%m")
 
     price = get_usdt_vnd()
     if not price:
