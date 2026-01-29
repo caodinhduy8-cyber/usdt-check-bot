@@ -5,34 +5,36 @@ import os
 
 TOKEN = os.getenv("BOT_TOKEN") or "DAN_TOKEN_BOT_CUA_ANH_VAO_DAY"
 
+P2P_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 
 def get_usdt_vnd():
+    payload = {
+        "asset": "USDT",
+        "fiat": "VND",
+        "tradeType": "BUY",
+        "page": 1,
+        "rows": 1
+    }
+
     try:
-        url = "https://api.binance.com/api/v3/ticker/price?symbol=USDTBUSD"
-        res = requests.get(url, timeout=5).json()
-        usdt_usd = float(res["price"])
-
-        # tỷ giá USD/VND ước lượng (ổn định hơn)
-        usd_vnd = 26500  
-
-        return int(usdt_usd * usd_vnd)
-
+        r = requests.post(P2P_URL, json=payload, timeout=10).json()
+        return int(float(r["data"][0]["adv"]["price"]))
     except Exception:
         return None
 
-
 async def usdt(update, context):
-    price = get_usdt_vnd()
     now = datetime.now().strftime("%H:%M %d/%m")
 
-    if price is None:
+    price = get_usdt_vnd()
+    if not price:
         await update.message.reply_text("⚠️ Không lấy được giá USDT, thử lại sau.")
         return
 
     await update.message.reply_text(
-        f"💰 USDT ≈ {price:,} VND\n🕐 {now}"
+        f"🕐 {now}\n"
+        f"💰 USDT: {price:,} VND\n"
+        f"(Nguồn: Binance P2P)"
     )
-
 
 app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(CommandHandler("usdt", usdt))
