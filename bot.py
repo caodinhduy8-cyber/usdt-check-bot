@@ -18,10 +18,12 @@ def get_p2p_price(trade_type):
     return float(r["data"][0]["adv"]["price"])
 
 def get_usdt_p2p():
-    buy = get_p2p_price("BUY")   # người mua trả giá cao
-    sell = get_p2p_price("SELL") # người bán rẻ nhất
-    avg = int((buy + sell) / 2)
-    return int(buy), int(sell), avg
+    # ĐẢO CHIỀU CHO ĐÚNG THỊ TRƯỜNG
+    sell_price = get_p2p_price("BUY")    # người bán rẻ nhất
+    buy_price = get_p2p_price("SELL")    # người mua trả cao nhất
+
+    avg = int((buy_price + sell_price) / 2)
+    return int(buy_price), int(sell_price), avg
 
 async def usdt(update, context):
     try:
@@ -37,7 +39,7 @@ async def usdt(update, context):
         )
     except Exception as e:
         print(e)
-        await update.message.reply_text("⚠ Không lấy được giá USDT, thử lại.")
+        await update.message.reply_text("⚠ Lỗi lấy giá, thử lại.")
 
 app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(CommandHandler("usdt", usdt))
