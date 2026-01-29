@@ -2,23 +2,18 @@ import requests
 from telegram.ext import ApplicationBuilder, CommandHandler
 from datetime import datetime, timedelta
 import os
-from bs4 import BeautifulSoup
 
 TOKEN = os.getenv("BOT_TOKEN") or "DAN_TOKEN_BOT_CUA_ANH_VAO_DAY"
-URL = "https://moneyexchange247.com"
+
+API_URL = "https://moneyexchange247.com/api/rate"
 
 def get_usdt_prices():
-    html = requests.get(URL, timeout=10).text
-    soup = BeautifulSoup(html, "html.parser")
+    data = requests.get(API_URL, timeout=10).json()
 
-    buy_block = soup.find("div", string="USDT").find_parent("div")
-    buy_price = int(buy_block.find("span").text.replace(",", "").replace(" VND", ""))
+    buy = int(data["USDT"]["buy"])
+    sell = int(data["USDT"]["sell"])
 
-    sell_section = soup.find("div", string="Bạn muốn BÁN")
-    sell_block = sell_section.find_next("div", string="USDT").find_parent("div")
-    sell_price = int(sell_block.find("span").text.replace(",", "").replace(" VND", ""))
-
-    return buy_price, sell_price
+    return buy, sell
 
 
 async def usdt(update, context):
