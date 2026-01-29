@@ -1,62 +1,43 @@
 import requests
-from bs4 import BeautifulSoup
 from telegram.ext import ApplicationBuilder, CommandHandler
-from datetime import datetime
-import pytz
+from datetime import datetime, timedelta
 import os
+from bs4 import BeautifulSoup
 
 TOKEN = os.getenv("BOT_TOKEN") or "DAN_TOKEN_BOT_CUA_ANH_VAO_DAY"
-
 URL = "https://moneyexchange247.com"
 
-def get_usdt_avg():
-    r = requests.get(URL, timeout=10)
-    soup = BeautifulSoup(r.text, "html.parser")
+def get_usdt_prices():
+    html = requests.get(URL, timeout=10).text
+    soup = BeautifulSoup(html, "html.parser")
 
-    rows = soup.select("div.rate-row")
+    buy_block = soup.find("div", string="USDT").find_parent("div")
+    buy_price = int(buy_block.find("span").text.replace(",", "").replace(" VND", ""))
 
-    buy = None
-    sell = None
+    sell_section = soup.find("div", string="Bạn muốn BÁN")
+    sell_block = sell_section.find_next("div", string="USDT").find_parent("div")
+    sell_price = int(sell_block.find("span").text.replace(",", "").replace(" VND", ""))
 
-    for row in rows:
-        name = row.text.lower()
-        price = row.find("span", class_="price")
-
-        if not price:
-            continue
-
-        value = int(price.text.replace(",", "").replace(" VND", ""))
-
-        if "usdt" in name and buy is None:
-            buy = value
-        elif "usdt" in name and buy is not None:
-            sell = value
-            break
-
-    if buy is None or sell is None:
-        raise Exception("Không lấy được giá")
-
-    avg = int((buy + sell) / 2)
-    return buy, sell, avg
+    return buy_price, sell_price
 
 
 async def usdt(update, context):
     try:
-        buy, sell, avg = get_usdt_avg()
+        buy, sell = get_usdt_prices()
+        avg = int((buy + sell) / 2)
 
-        vn_time = datetime.now(pytz.timezone("Asia/Ho_Chi_Minh")).strftime("%H:%M %d/%m")
+        now = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M %d/%m")
 
-        text = (
-            f"🕐 {vn_time}\n"
+        await update.message.reply_text(
+            f"🕐 {now}\n"
             f"💵 Mua: {buy:,} VND\n"
             f"💰 Bán: {sell:,} VND\n"
             f"📊 Trung bình: {avg:,} VND\n"
             f"(Nguồn: MoneyExchange247)"
         )
 
-        await update.message.reply_text(text)
-
-    except:
+    except Exception as e:
+        print("ERROR:", e)
         await update.message.reply_text("⚠ Không lấy được giá USDT, thử lại sau.")
 
 
